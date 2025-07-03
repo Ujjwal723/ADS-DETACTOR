@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AdCrime Inspector</title>
+  <style>
+    body { font-family: Arial; background: #121212; color: #fff; padding: 20px; }
+    .hidden { display: none; }
+    input, textarea { width: 100%; padding: 8px; margin: 6px 0; }
+    button { padding: 10px 15px; background: #1e88e5; color: white; border: none; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #444; padding: 10px; }
+    #traceResult { margin-top: 10px; font-weight: bold; white-space: pre-line; color: #66bb6a; }
+  </style>
+</head>
+<body>
+ 
+ <div style="text-align: center; margin-bottom: 20px;">
+    <img src="Haryana-police-logo.png" alt="Police Logo" style="height: 180px;" />
+    <h2>AdCrime Inspector - Police Panel</h2>
+  </div>
+  <!-- Login Form -->
+  <div id="loginForm">
+    <h3>Login</h3>
+    <input type="text" id="username" placeholder="Username" />
+    <input type="password" id="password" placeholder="Password" />
+    <button onclick="login()">Login</button>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard" class="hidden">
+    <h3>Add Suspect Ad</h3>
+    <input type="text" id="url" placeholder="Ad URL" />
+    <input type="text" id="phone" placeholder="Phone Number" />
+    <input type="text" id="platform" placeholder="Platform (e.g., OLX)" />
+    <textarea id="description" placeholder="Description"></textarea>
+    <input type="date" id="date" />
+    <button onclick="submitAd()">Submit Ad</button>
+
+    <h3>All Tracked Ads</h3>
+    <table id="adsTable">
+      <thead>
+        <tr><th>ID</th><th>URL</th><th>Phone</th><th>Platform</th><th>Date</th><th>Flagged</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <h3>Trace URL Host, IP & Location</h3>
+    <input type="text" id="traceInput" placeholder="Enter URL to trace IP & location" />
+    <button onclick="traceURL()">Trace URL</button>
+    <div id="traceResult"></div>
+  </div>
+
+  <script>
+    function login() {
+      fetch('http://localhost:5000/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: document.getElementById('username').value,
+          password: document.getElementById('password').value
+        })
+      }).then(res => res.json()).then(data => {
+        if (data.status === 'success') {
+          document.getElementById('loginForm').classList.add('hidden');
+          document.getElementById('dashboard').classList.remove('hidden');
+          loadAds();
+        } else {
+          alert('Login failed');
+        }
+      });
+    }
+
+    function submitAd() {
+      const ad = {
+        url: document.getElementById('url').value,
+        phone: document.getElementById('phone').value,
+        platform: document.getElementById('platform').value,
+        description: document.getElementById('description').value,
+        date_posted: document.getElementById('date').value
+      };
+      fetch('http://localhost:5000/ads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ad)
+      }).then(res => res.json()).then(data => {
+        alert('Ad submitted');
+        loadAds();
+      });
+    }
+
+    function loadAds() {
+      fetch('http://localhost:5000/ads')
+        .then(res => res.json())
+        .then(data => {
+          const tbody = document.querySelector('#adsTable tbody');
+          tbody.innerHTML = '';
+          data.forEach(ad => {
+            tbody.innerHTML += `<tr>
+              <td>${ad.id}</td>
+              <td>${ad.url}</td>
+              <td>${ad.phone}</td>
+              <td>${ad.platform}</td>
+              <td>${ad.date_posted}</td>
+              <td>${ad.flagged}</td>
+            </tr>`;
+          });
+        });
+    }
+
+    function traceURL() {
+      const url = document.getElementById("traceInput").value;
+      fetch('http://localhost:5000/trace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url })
+      }).then(res => res.json())
+        .then(data => {
+          if (data.host && data.ip) {
+            document.getElementById("traceResult").innerText = `
+Host: ${data.host}
+IP Address: ${data.ip}
+Country: ${data.country}
+Region: ${data.region}
+City: ${data.city}
+Org: ${data.org}`;
+          } else {
+            document.getElementById("traceResult").innerText = "Unable to trace the URL.";
+          }
+        }).catch(() => {
+          document.getElementById("traceResult").innerText = "Error contacting server.";
+        });
+    }
+  </script>
+</body>
+</html>
